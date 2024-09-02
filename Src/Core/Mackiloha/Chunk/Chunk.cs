@@ -1,60 +1,48 @@
-﻿/*
-All bytes are in big endian order.
+﻿namespace Mackiloha.Chunk;
 
-It looks like milo files were replaced with this. Max Block Size = 0x10000 (2^16)
-
-BYTES(4) - "CHNK"
-INT32 - Uknown - Always 255?
-INT32 - Block Count
-INT32 - Largest Block (Uncompressed)
-INT16 - Always 1
-INT16 - Always 2
-BlockDetails[Block Count]
-
-* ----Block Details----
-* =====================
-* INT32 - Size
-* INT32 - Decompressed Size
-* Bool? - If "01 00 00 00", then it's compressed.
-* INT32 - Offset
-
-Begin ZLib'd blocks!
-*/
-
-namespace Mackiloha.Chunk;
-
-// Successor to Milo container (Used in FME/RBVR)
+// Successor to Milo container (Used in FME/DCS/RBVR)
 public class Chunk
 {
     private const uint CHNK_MAGIC = 0x43484E4B; // "CHNK"
+    private const uint IS_COMPRESSED = 0x01_00_00_00;
 
     public Chunk()
     {
         Entries = new List<ChunkEntry>();
     }
 
-    public void WriteToFile(string outPath, bool noHeader = false)
+    public void WriteToFile(string outPath, bool writeHeader = true)
     {
-        using (FileStream fs = File.OpenWrite(outPath))
-        {
-            WriteToStream(fs, noHeader);
-        }
+        using var fs = File.OpenWrite(outPath);
+        WriteToStream(fs, writeHeader);
     }
 
-    public void WriteToStream(Stream stream, bool noHeader)
+    public void WriteToStream(Stream stream, bool writeHeader = true)
     {
         AwesomeWriter aw = new AwesomeWriter(stream, true);
 
-        if (!noHeader)
+        if (writeHeader)
         {
+            int endianFlag = 0xFF;
+            short extraShort = 2;
+
+            if (IsDurango)
+            {
+                endianFlag = 0x1FF;
+                extraShort = 5;
+            }
+
             aw.Write(CHNK_MAGIC);
-            aw.Write((int)255);
+            aw.Write((int)endianFlag);
+
+            aw.BigEndian = !IsDurango;
+
             aw.Write(Entries.Count);
             aw.Write(Entries.Max(x => x.Data.Length));
             aw.Write((short)1);
-            aw.Write((short)2);
+            aw.Write((short)extraShort);
 
-            int currentIdx = 20 + (Entries.Count << 2);
+            int currentIdx = 20 + (Entries.Count * 16);
 
             // Writes block details
             foreach (ChunkEntry entry in Entries)
@@ -62,8 +50,16 @@ public class Chunk
                 aw.Write(entry.Data.Length);
                 aw.Write(entry.Data.Length);
 
-                aw.Write((int)(entry.Compressed ? 1 : 0));
-                aw.Write(currentIdx);
+                if (IsDurango)
+                {
+                    aw.Write(currentIdx);
+                    aw.Write((int)(entry.Compressed ? IS_COMPRESSED : 0));
+                }
+                else
+                {
+                    aw.Write((int)(entry.Compressed ? IS_COMPRESSED : 0));
+                    aw.Write(currentIdx);
+                }
 
                 currentIdx += entry.Data.Length;
             }
@@ -73,13 +69,15 @@ public class Chunk
         Entries.ForEach(x => aw.Write(x.Data));
     }
 
-    public static void DecompressChunkFile(string inPath, string outPath, bool noHeader)
+    public static void DecompressChunkFile(string inPath, string outPath, bool writeHeader = true)
     {
-        using (FileStream fs = File.OpenRead(inPath))
+        Chunk chunk;
+        using (var fs = File.OpenRead(inPath))
         {
-            Chunk chunk = ReadFromStream(fs);
-            chunk.WriteToFile(outPath, noHeader);
+            chunk = ReadFromStream(fs);
         }
+
+        chunk.WriteToFile(outPath, writeHeader);
     }
 
     private static Chunk ReadFromStream(Stream stream)
@@ -89,9 +87,15 @@ public class Chunk
 
         if (ar.ReadUInt32() != CHNK_MAGIC) return chunk;
 
-        ar.BaseStream.Position += 4; // Always 255?
+        var flag = ar.ReadUInt32();
+        if ((flag & 0x100) != 0)
+        {
+            chunk.IsDurango = true;
+            ar.BigEndian = false;
+        }
+
         int blockCount = ar.ReadInt32();
-        ar.BaseStream.Position += 8; // Skips 1, 2 (16-bits)
+        ar.BaseStream.Position += 8; // Skips 1, 2/5 (16-bits)
 
         int[] blockSize = new int[blockCount];
         bool[] compressed = new bool[blockCount]; // Uncompressed by default
@@ -102,10 +106,17 @@ public class Chunk
             blockSize[i] = ar.ReadInt32();
             ar.BaseStream.Position += 4; // Decompressed size (Not needed)
 
-            // Sets as compressed if it meets the requirement
-            compressed[i] = ar.ReadInt32() == 0x1000000;
-
-            ar.BaseStream.Position += 4; // Offset (Not needed)
+            // Fields are swapped depending on platform
+            if (chunk.IsDurango)
+            {
+                ar.BaseStream.Position += 4; // Offset (Not needed)
+                compressed[i] = ar.ReadInt32() == IS_COMPRESSED;
+            }
+            else
+            {
+                compressed[i] = ar.ReadInt32() == IS_COMPRESSED;
+                ar.BaseStream.Position += 4; // Offset (Not needed)
+            }
         }
 
         for (int i = 0; i < blockCount; i++)
@@ -133,7 +144,8 @@ public class Chunk
         return chunk;
     }
 
-    public List<ChunkEntry> Entries;
+    public bool IsDurango { get; set; }
+    public List<ChunkEntry> Entries { get; set; }
 }
 
 public class ChunkEntry

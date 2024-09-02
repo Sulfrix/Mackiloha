@@ -19,7 +19,7 @@ public class Ark2DirOptions : BaseOptions
     [Option('t', "convertTextures", HelpText = "Convert textures to .png", Hidden = true)]
     public bool ConvertTextures { get; set; }
 
-    [Option('m', "inflateMilos", HelpText = "Inflate milo archives (decompress)")]
+    [Option('m', "inflateMilos", HelpText = "Inflate milo/scene archives (decompress)")]
     public bool InflateMilos { get; set; }
 
     [Option('x', "extractMilos", HelpText = "Extract milo archives (can't be used with decompress)", Hidden = true)]

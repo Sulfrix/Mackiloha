@@ -5,6 +5,7 @@ using Mackiloha;
 using Mackiloha.App;
 using Mackiloha.App.Extensions;
 using Mackiloha.Ark;
+using Mackiloha.Chunk;
 using Mackiloha.CSV;
 using Mackiloha.IO;
 using Mackiloha.Milo;
@@ -18,11 +19,28 @@ public class Ark2DirApp
 {
     protected readonly ILogManager LogManager;
     protected readonly IScriptHelper ScriptHelper;
+    protected readonly HashSet<string> ChunkExtensions;
 
     public Ark2DirApp(ILogManager logManager, IScriptHelper scriptHelper)
     {
         LogManager = logManager;
         ScriptHelper = scriptHelper;
+
+        string[] platforms = ["durango", "xbox"];
+        string[] formats = [
+            "char",
+            "cliptype",
+            "dir",
+            "entity",
+            "layer",
+            "scene",
+            "song",
+            "uiscreen",
+        ];
+
+        ChunkExtensions = new HashSet<string>(
+            platforms.SelectMany(p => formats.Select(f => $"{f}_{p}")),
+            StringComparer.InvariantCultureIgnoreCase);
     }
 
     private string CombinePath(string basePath, string path)
@@ -142,11 +160,17 @@ public class Ark2DirApp
                 && miloRegex.IsMatch(x.FullPath))
             .ToList();
 
+        var chunksToInflate = ark.Entries
+            .Where(x => op.InflateMilos
+                && ChunkExtensions.Contains(x.Extension))
+            .ToList();
+
         var entriesToExtract = ark.Entries
             .Where(x => op.ExtractAll)
             .Except(scriptsToConvert)
             .Except(texturesToConvert)
             .Except(milosToInflate)
+            .Except(chunksToInflate)
             .ToList();
 
         foreach (var arkEntry in entriesToExtract)
@@ -228,6 +252,16 @@ public class Ark2DirApp
             File.Delete(tempPath);
 
             Log.Information("Wrote \"{ExtractedMiloPath}\"", extPath);
+        }
+
+        foreach (var chunkEntry in chunksToInflate)
+        {
+            var filePath = ExtractEntry(ark, chunkEntry, CombinePath(op.OutputPath, chunkEntry.FullPath));
+
+            // Inflate chunk
+            Chunk.DecompressChunkFile(filePath, filePath);
+
+            Log.Information("Wrote \"{FilePath}\"", filePath);
         }
 
         foreach (var csvEntry in csvsToConvert)
