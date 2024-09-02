@@ -107,6 +107,26 @@ public class ScriptHelperDtab : IScriptHelper
         }
         else
         {
+            if (arkVersion == 7)
+            {
+                // Decrypt dtb (in-place)
+                Cli.Wrap(DtabPath)
+                    .WithArguments(new[]
+                    {
+                        newEncryption ? "-d" : "-D",
+                        dtbPath,
+                        decDtbPath
+                    })
+                    .WithValidation(CommandResultValidation.None)
+                    .WithStandardOutputPipe(PipeTarget.ToDelegate(WriteOutput))
+                    .WithStandardErrorPipe(PipeTarget.ToDelegate(WriteOutputError))
+                    .ExecuteAsync()
+                    .Task.Wait();
+
+                File.Copy(decDtbPath, dtbPath, overwrite: true);
+                File.Delete(decDtbPath);
+            }
+
             // New dtb style, convert to old format to use dtab
             //  and assume not encrypted
             ConvertNewDtbToOld(dtbPath, decDtbPath, arkVersion < 9);
