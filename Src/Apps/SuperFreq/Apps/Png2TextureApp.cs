@@ -24,8 +24,8 @@ public class Png2TextureApp
         var appState = AppState.FromFile(op.InputPath);
         appState.UpdateSystemInfo(op.GetSystemInfo());
 
-        var numMips = 5;
-        HMXBitmap bitmap = TextureExtensions.BitmapFromImage(op.InputPath, appState.SystemInfo, numMips);
+        const int numMips = 5;
+        var bitmap = TextureExtensions.BitmapFromImage(op.InputPath, appState.SystemInfo, numMips);
         var serializer = appState.GetSerializer();
         serializer.WriteToFile(op.OutputPath, bitmap);
 
