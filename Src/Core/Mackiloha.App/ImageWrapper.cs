@@ -2,6 +2,7 @@
 using BCnEncoder.ImageSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace Mackiloha.App;
 
@@ -150,40 +151,44 @@ public class ImageWrapper : IImageWrapper, IDisposable
         return data;
     }
 
-    public byte[] AsDXT1()
+    public byte[] AsDXT1(int maxMips, out int mipLevels)
     {
         BcEncoder encoder = new BcEncoder();
-        encoder.OutputOptions.GenerateMipMaps = false;
+        encoder.OutputOptions.GenerateMipMaps = maxMips > 0;
+        encoder.OutputOptions.MaxMipMapLevel = maxMips;
         encoder.OutputOptions.Quality = CompressionQuality.BestQuality;
         encoder.OutputOptions.Format = BCnEncoder.Shared.CompressionFormat.Bc1;
         encoder.OutputOptions.FileFormat = BCnEncoder.Shared.OutputFileFormat.Dds;
 
-        var data = new byte[(_image.Width * _image.Height) >> 1];
-        using var ms = new MemoryStream(new byte[data.Length + 128]);
+        using var ms = new MemoryStream();
         encoder.EncodeToStream(_image, ms);
+        mipLevels = encoder.CalculateNumberOfMipLevels(_image.Width, _image.Height);
+        var data = new byte[ms.Length];
 
         // Copy to array (definitely not the most efficient...)
         ms.Seek(128, SeekOrigin.Begin);
-        ms.Read(data, 0, data.Length);
+        ms.Read(data);
 
         return data;
     }
 
-    public byte[] AsDXT5()
+    public byte[] AsDXT5(int maxMips, out int mipLevels)
     {
         BcEncoder encoder = new BcEncoder();
-        encoder.OutputOptions.GenerateMipMaps = false;
+        encoder.OutputOptions.GenerateMipMaps = maxMips > 0;
+        encoder.OutputOptions.MaxMipMapLevel = maxMips;
         encoder.OutputOptions.Quality = CompressionQuality.BestQuality;
         encoder.OutputOptions.Format = BCnEncoder.Shared.CompressionFormat.Bc3;
         encoder.OutputOptions.FileFormat = BCnEncoder.Shared.OutputFileFormat.Dds;
 
-        var data = new byte[_image.Width * _image.Height];
-        using var ms = new MemoryStream(new byte[data.Length + 128]);
+        using var ms = new MemoryStream();
         encoder.EncodeToStream(_image, ms);
+        mipLevels = encoder.CalculateNumberOfMipLevels(_image.Width, _image.Height);
+        var data = new byte[ms.Length];
 
         // Copy to array (definitely not the most efficient...)
         ms.Seek(128, SeekOrigin.Begin);
-        ms.Read(data, 0, data.Length);
+        ms.Read(data);
 
         return data;
     }

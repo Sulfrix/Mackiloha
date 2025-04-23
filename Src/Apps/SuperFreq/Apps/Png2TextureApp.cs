@@ -1,4 +1,5 @@
-﻿using Mackiloha.App;
+﻿using Mackiloha;
+using Mackiloha.App;
 using Mackiloha.App.Extensions;
 using SuperFreq.Helpers;
 using SuperFreq.Options;
@@ -23,7 +24,8 @@ public class Png2TextureApp
         var appState = AppState.FromFile(op.InputPath);
         appState.UpdateSystemInfo(op.GetSystemInfo());
 
-        var bitmap = TextureExtensions.BitmapFromImage(op.InputPath, appState.SystemInfo);
+        var numMips = 5;
+        HMXBitmap bitmap = TextureExtensions.BitmapFromImage(op.InputPath, appState.SystemInfo, numMips);
         var serializer = appState.GetSerializer();
         serializer.WriteToFile(op.OutputPath, bitmap);
 

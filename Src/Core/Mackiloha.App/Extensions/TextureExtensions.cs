@@ -692,15 +692,15 @@ public static class TextureExtensions
         return image;
     }
 
-    private static byte[] EncodeDxImage(byte[] raw, int width, int height, int mips, DxEncoding encoding)
+    private static byte[] EncodeDxImage(byte[] raw, int width, int height, int mips, DxEncoding encoding, out int mipLevels)
     {
         using var image = ImageWrapper.FromRGBA(raw, width, height);
 
         return encoding switch
         {
-            DxEncoding.DXGI_FORMAT_BC1_UNORM => image.AsDXT1(),
-            DxEncoding.DXGI_FORMAT_BC5_UNORM => image.AsDXT5(),
-            _ => image.AsDXT5() // TODO: Support ATI2 somehow
+            DxEncoding.DXGI_FORMAT_BC1_UNORM => image.AsDXT1(mips, out mipLevels),
+            DxEncoding.DXGI_FORMAT_BC5_UNORM => image.AsDXT5(mips, out mipLevels),
+            _ => image.AsDXT5(mips, out mipLevels) // TODO: Support ATI2 somehow
         };
 
         /*
@@ -900,7 +900,7 @@ public static class TextureExtensions
         image.WriteToFile(path);
     }
 
-    public static HMXBitmap BitmapFromImage(string imagePath, SystemInfo info)
+    public static HMXBitmap BitmapFromImage(string imagePath, SystemInfo info, int maxMips = 0)
     {
         using var image = new ImageWrapper(imagePath);
 
@@ -924,7 +924,7 @@ public static class TextureExtensions
                 ? (8, 24, DxEncoding.DXGI_FORMAT_BC3_UNORM) // DXT5
                 : (4, 8, DxEncoding.DXGI_FORMAT_BC1_UNORM); // DXT1
 
-            var rawData = EncodeDxImage(inputBytes, width, height, 0, dxEnc);
+            var rawData = EncodeDxImage(inputBytes, width, height, maxMips, dxEnc, out var mipLevels);
 
             if (info.Platform == Platform.X360)
                 SwapBytes(rawData);
@@ -933,7 +933,7 @@ public static class TextureExtensions
             {
                 Bpp = bpp2,
                 Encoding = enc,
-                MipMaps = 0,
+                MipMaps = mipLevels,
                 Width = width,
                 Height = height,
                 BPL = (width * bpp2) / 8,
@@ -948,11 +948,13 @@ public static class TextureExtensions
             {
                 var (rgbData, alphaData) = SplitRGBAForTPL(rawData);
 
+                
                 // Encode as two DXT1 images
-                var rgbDxData = EncodeDxImage(rgbData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM);
+                // TODO: wii mips
+                var rgbDxData = EncodeDxImage(rgbData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM, out _);
                 Texture.TPL.DXT1ToTPL(width, height, rgbDxData);
 
-                var alphaDxData = EncodeDxImage(alphaData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM);
+                var alphaDxData = EncodeDxImage(alphaData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM, out _);
                 Texture.TPL.DXT1ToTPL(width, height, alphaDxData);
 
                 // Combine image data
@@ -974,7 +976,7 @@ public static class TextureExtensions
             else
             {
                 // Encode as DXT1
-                var dxData = EncodeDxImage(rawData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM);
+                var dxData = EncodeDxImage(rawData, width, height, 0, DxEncoding.DXGI_FORMAT_BC1_UNORM, out _);
                 Texture.TPL.DXT1ToTPL(width, height, dxData);
 
                 return new HMXBitmap()

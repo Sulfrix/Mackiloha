@@ -42,9 +42,9 @@ public class HMXBitmapSerializer : AbstractSerializer
 
         aw.Write(new byte[19]);
 
-        byte[] bytes = new byte[CalculateTextureByteSize(bitmap.Encoding, bitmap.Width, bitmap.Height, bitmap.Bpp, bitmap.MipMaps)];
-        Array.Copy(bitmap.RawData, bytes, bytes.Length);
-        aw.Write(bytes);
+        //byte[] bytes = new byte[CalculateTextureByteSize(bitmap.Encoding, bitmap.Width, bitmap.Height, bitmap.Bpp, bitmap.MipMaps)];
+        //Array.Copy(bitmap.RawData, bytes, bytes.Length);
+        aw.Write(bitmap.RawData);
     }
 
     private int CalculateTextureByteSize(int encoding, int w, int h, int bpp, int mips, int wiiAlphaNum = 0)
