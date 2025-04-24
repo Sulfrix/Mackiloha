@@ -155,7 +155,10 @@ public class ImageWrapper : IImageWrapper, IDisposable
     {
         BcEncoder encoder = new BcEncoder();
         encoder.OutputOptions.GenerateMipMaps = maxMips > 0;
-        encoder.OutputOptions.MaxMipMapLevel = maxMips;
+        if (maxMips > 0)
+        {
+            encoder.OutputOptions.MaxMipMapLevel = maxMips;
+        }
         encoder.OutputOptions.Quality = CompressionQuality.BestQuality;
         encoder.OutputOptions.Format = BCnEncoder.Shared.CompressionFormat.Bc1;
         encoder.OutputOptions.FileFormat = BCnEncoder.Shared.OutputFileFormat.Dds;
