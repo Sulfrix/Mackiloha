@@ -11,6 +11,6 @@ public class Png2TextureOptions : GameOptions
     [Value(1, Required = true, MetaName = "texPath", HelpText = "Path to output texture")]
     public string OutputPath { get; set; }
     
-    [Option('i', "mipmaps", Default = 5, HelpText = "Maximum number of mipmap levels")]
+    [Option('i', "mipmaps", Default = 0, HelpText = "Maximum number of mipmap levels")]
     public int MipMaps { get; set; }
 }
