@@ -166,6 +166,7 @@ public class ImageWrapper : IImageWrapper, IDisposable
         using var ms = new MemoryStream();
         encoder.EncodeToStream(_image, ms);
         mipLevels = encoder.CalculateNumberOfMipLevels(_image.Width, _image.Height);
+        mipLevels = Math.Min(mipLevels, maxMips);
         var data = new byte[ms.Length];
 
         // Copy to array (definitely not the most efficient...)
@@ -187,6 +188,7 @@ public class ImageWrapper : IImageWrapper, IDisposable
         using var ms = new MemoryStream();
         encoder.EncodeToStream(_image, ms);
         mipLevels = encoder.CalculateNumberOfMipLevels(_image.Width, _image.Height);
+        mipLevels = Math.Min(mipLevels, maxMips);
         var data = new byte[ms.Length];
 
         // Copy to array (definitely not the most efficient...)
